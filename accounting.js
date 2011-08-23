@@ -21,6 +21,7 @@ var accounting = (function () {
 	 * Removes currency formatting from a number or array of numbers, returning numeric values
 	 * 
 	 * Decimal must be included in the regular expression to match floats (default: ".")
+	 * To do: rewrite this to be a little more elegant and maybe throw useful errors.
 	 */
 	function unformat(number, decimal) {
 		// Recursively unformat arrays:
@@ -33,12 +34,13 @@ var accounting = (function () {
 		
 		// Default decimal point is "." but could be set to eg. ",":
 	    decimal = decimal || ".";
-	    
+
 	    // Build regex to strip out everything except digits, decimal point and minus sign:
-		var regex = new RegExp("[^0-9-" + decimal + "]", ["g"]);
-		
-		// Perform the unformatting regex if number is a single value:
-		return parseFloat(("" + number).replace(regex, '').replace(decimal, '.'));
+		var regex = new RegExp("[^0-9-" + decimal + "]", ["g"]),
+			unformatted = parseFloat(("" + number).replace(regex, '').replace(decimal, '.'));
+
+		// This will fail silently which may cause trouble, let's wait and see:
+		return !isNaN(unformatted) ? unformatted : 0;
 	}
 
 
