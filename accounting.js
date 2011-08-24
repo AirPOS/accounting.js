@@ -11,7 +11,7 @@ var accounting = (function () {
 
 	/**
 	 * The library's settings configuration object
-	 *
+	 * 
 	 * Contains default parameters for currency and number formatting
 	 */
 	var settings = {
@@ -21,7 +21,7 @@ var accounting = (function () {
 			decimal : ".",  // decimal point separator
 			thousand: ",",  // thousands separator
 			precision : 2,  // decimal places
-			grouping : 3    // digit grouping (not implemented yet)
+			grouping : 3   // digit grouping (not implemented yet)
 		},
 		number: {
 			precision : 0,	// default precision on numbers is 0
@@ -34,9 +34,11 @@ var accounting = (function () {
 
 	/* ===== Internal Helper Methods ===== */
 
+    var toString = Object.prototype.toString;
+
 	/**
 	 * Extends an object with a defaults object, similar to underscore's _.defaults
-	 *
+	 * 
 	 * Used for abstracting parameter handling from API methods
 	 */
 	function defaults(object, defaults) {
@@ -59,20 +61,16 @@ var accounting = (function () {
 		return isNaN(val)? base : val;
 	}
 
-	/**
-	 * Simplified `Array.map()`
-	 *
-	 * Returns a new Array as a result of calling `fn` on each array value.
+    /**
+	 * Check if value is of a certain type, since typeOf isn't reliable (http://javascriptweblog.wordpress.com/2011/08/08/fixing-the-javascript-typeof-operator/)
 	 */
-	function map(arr, fn, thisVal){
-		var i = 0,
-			n = arr.length,
-			result = [];
-		while(i < n){
-			result[i] = fn.call(thisVal, arr[i], i, arr);
-			i += 1;
-		}
-		return result;
+
+	function isArray(val){
+		return toString.call(val) === '[object Array]';
+	}
+
+	function isObject(val){
+		return toString.call(val) === '[object Object]';
 	}
 
 
@@ -80,16 +78,19 @@ var accounting = (function () {
 
 	/**
 	 * Removes currency formatting from a number/array of numbers, returning numeric values
-	 *
+	 * 
 	 * Decimal must be included in the regular expression to match floats (default: ".")
 	 * To do: rewrite this to be a little more elegant and maybe throw useful errors.
 	 */
 	function unformat(number, decimal) {
 		// Recursively unformat arrays:
-		if (typeof number === "object") {
-			return map(number, function(val){
-                return unformat(val, decimal);
-            });
+		if ( isArray(number) ) {
+			for (
+				var i = 0, values = [];
+				i < number.length;
+				values.push(unformat(number[i], decimal)), i++
+			);
+			return values;
 		}
 
 		// Fails silently (need decent errors):
@@ -97,7 +98,7 @@ var accounting = (function () {
 
 		// Default decimal point is "." but could be set to eg. ",":
 	    decimal = decimal || ".";
-
+	    
 	    // Build regex to strip out everything except digits, decimal point and minus sign:
 		var regex = new RegExp("[^0-9-" + decimal + "]", ["g"]),
 		    unformatted = parseFloat(("" + number).replace(regex, '').replace(decimal, '.'));
@@ -109,7 +110,7 @@ var accounting = (function () {
 
 	/**
 	 * Implementation of toFixed() that treats floats more like decimals
-	 *
+	 * 
 	 * Fixes binary rounding issues (eg. (0.615).toFixed(2) === "0.61") that present 
 	 * problems for accounting- and finance-related software.
 	 */
@@ -130,17 +131,22 @@ var accounting = (function () {
 	 */
 	function formatNumber(number, precision, thousand, decimal) {
 		// Resursively format arrays:
-		if (typeof number === "object") {
-			return map(number, function(val){
-                return formatNumber(val, precision, thousand, decimal);
-            });
-        }
+		if ( isArray(number) ) {
+			// Call formatNumber on each value, pass parameters as-is:
+			for (
+				var i = 0, values = [];
+				i < number.length;
+				values.push(formatNumber(number[i], precision, thousand, decimal)) && i++
+			);
+			// We're done, return it:
+			return values;
+		}
 
 		// Number isn't an array - do the formatting:
 		var result, opts;
 
 		// Second param precision can be an object matching settings.number:
-		opts = (typeof precision === "object") ? precision : {
+		opts = isObject(precision) ? precision : {
 			precision: precision,
 			thousand : thousand,
 			decimal : decimal
@@ -171,19 +177,24 @@ var accounting = (function () {
 	 * 
 	 * Localise by overriding the symbol, precision, thousand / decimal separators and format
 	 * Second param can be an object matching `settings.currency` which is the easiest way.
-	 *
+	 * 
 	 * To do: tidy up the parameters
 	 */
 	function formatMoney(number, symbol, precision, thousand, decimal, format) {
 		// Resursively format arrays:
-		if (typeof number === "object") {
-			return map(number, function(val){
-                return formatMoney(val, symbol, precision, thousand, decimal, format);
-            });
+		if ( isArray(number) ) {
+			// Call formatNumber on each value, pass parameters as-is:
+			for (
+				var i = 0, values = []; 
+				i < number.length;
+				values.push(formatMoney(number[i], symbol, precision, thousand, decimal, format)) && i++
+			);
+			// We're done, return it:
+			return values;
 		}
 
 		// Second param can be an object matching settings.currency:
-		var opts = (typeof symbol === "object") ? symbol : {
+		var opts = isObject(symbol) ? symbol : {
 			symbol : symbol,
 			precision : precision,
 			thousand : thousand,
@@ -226,7 +237,7 @@ var accounting = (function () {
 		// Format the list according to options, store the length of the longest string:
 		// Performs recursive formatting of nested arrays
 		for (i = 0; i < list.length; i++) {
-			if (typeof list[i] === "object") {
+			if ( isArray(list[i]) ) {
 				// Recursively format columns if list is a multi-dimensional array:
 				formatted.push(formatColumn(list[i], symbol, precision, thousand, decimal));
 			} else {
