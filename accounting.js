@@ -21,7 +21,7 @@ var accounting = (function () {
 			decimal : ".",  // decimal point separator
 			thousand: ",",  // thousands separator
 			precision : 2,  // decimal places
-			grouping : 3   // digit grouping (not implemented yet)
+			grouping : 3    // digit grouping (not implemented yet)
 		},
 		number: {
 			precision : 0,	// default precision on numbers is 0
@@ -34,7 +34,8 @@ var accounting = (function () {
 
 	/* ===== Internal Helper Methods ===== */
 
-    var toString = Object.prototype.toString;
+	// Store reference to possibly-available ECMAScript 5 methods for later:
+    var nativeMap = Array.prototype.map;
 
 	/**
 	 * Extends an object with a defaults object, similar to underscore's _.defaults
@@ -61,18 +62,26 @@ var accounting = (function () {
 		return isNaN(val)? base : val;
 	}
 
-    /**
-	 * Check if value is of a certain type, since typeOf isn't reliable (http://javascriptweblog.wordpress.com/2011/08/08/fixing-the-javascript-typeof-operator/)
+	/**
+	 * Simplified `Array.map()`
+	 *
+	 * Returns a new Array as a result of calling `fn` on each array value.
+	 * Defers to native Array.map if available
 	 */
+    function map(obj, iterator, context){
+        var results = [];
+        if (obj == null) return results;
 
-	var isArray = Array.isArray || function (val){
-		return toString.call(val) === '[object Array]';
-	};
+        // Use native .map method if it exists:
+        if (nativeMap && obj.map === nativeMap) return obj.map(iterator, context);
 
-	function isObject(val){
-		return toString.call(val) === '[object Object]';
-	}
-
+        // Fallback for native .map:
+        for (var i = 0; i < obj.length; i++ ) {
+            results[i] = iterator.call(context, obj[i], i, obj);
+        }
+        return results;
+    }
+    
 
 	/* ===== API Methods ===== */
 
@@ -84,13 +93,10 @@ var accounting = (function () {
 	 */
 	function unformat(number, decimal) {
 		// Recursively unformat arrays:
-		if ( isArray(number) ) {
-			for (
-				var i = 0, values = [];
-				i < number.length;
-				values.push(unformat(number[i], decimal)), i++
-			);
-			return values;
+		if (typeof number === "object") {
+			return map(number, function(val){
+                return unformat(val, decimal);
+            });
 		}
 
 		// Fails silently (need decent errors):
@@ -131,22 +137,17 @@ var accounting = (function () {
 	 */
 	function formatNumber(number, precision, thousand, decimal) {
 		// Resursively format arrays:
-		if ( isArray(number) ) {
-			// Call formatNumber on each value, pass parameters as-is:
-			for (
-				var i = 0, values = [];
-				i < number.length;
-				values.push(formatNumber(number[i], precision, thousand, decimal)) && i++
-			);
-			// We're done, return it:
-			return values;
-		}
+		if (typeof number === "object") {
+			return map(number, function(val){
+                return formatNumber(val, precision, thousand, decimal);
+            });
+        }
 
 		// Number isn't an array - do the formatting:
 		var result, opts;
 
 		// Second param precision can be an object matching settings.number:
-		opts = isObject(precision) ? precision : {
+		opts = (typeof precision === "object") ? precision : {
 			precision: precision,
 			thousand : thousand,
 			decimal : decimal
@@ -182,19 +183,14 @@ var accounting = (function () {
 	 */
 	function formatMoney(number, symbol, precision, thousand, decimal, format) {
 		// Resursively format arrays:
-		if ( isArray(number) ) {
-			// Call formatNumber on each value, pass parameters as-is:
-			for (
-				var i = 0, values = []; 
-				i < number.length;
-				values.push(formatMoney(number[i], symbol, precision, thousand, decimal, format)) && i++
-			);
-			// We're done, return it:
-			return values;
+		if (typeof number === "object") {
+			return map(number, function(val){
+                return formatMoney(val, symbol, precision, thousand, decimal, format);
+            });
 		}
 
 		// Second param can be an object matching settings.currency:
-		var opts = isObject(symbol) ? symbol : {
+		var opts = (typeof symbol === "object") ? symbol : {
 			symbol : symbol,
 			precision : precision,
 			thousand : thousand,
@@ -237,7 +233,7 @@ var accounting = (function () {
 		// Format the list according to options, store the length of the longest string:
 		// Performs recursive formatting of nested arrays
 		for (i = 0; i < list.length; i++) {
-			if ( isArray(list[i]) ) {
+			if (typeof list[i] === "object") {
 				// Recursively format columns if list is a multi-dimensional array:
 				formatted.push(formatColumn(list[i], symbol, precision, thousand, decimal));
 			} else {
