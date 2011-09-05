@@ -6,7 +6,17 @@
  * Licensed under GPL v3 | http://www.gnu.org/licenses/gpl-3.0.txt
  */
 var accounting = (function () {
-	
+
+	/**
+	 * Money should be stored as integers, so we're assuming that any money calculation will
+	 * be made by passing an integer representation of the monies.
+	 *
+	 * TODO: Shouldn't blindly assume a currency unit (dollar,pound) is comprised of 100 sub-units (cents/pence)
+	 */
+	function from_int(number){
+		return (number/100);
+	};
+
 	/**
 	 * Removes currency formatting from a number or array of numbers, returning numeric values
 	 * 
@@ -47,7 +57,7 @@ var accounting = (function () {
 		}
 		
 		// Clean up parameters:
-		number = unformat(number);
+		number = from_int(unformat(number));
 		precision = isNaN(precision = Math.abs(precision)) ? 0 : precision;
 		thousand = !thousand ? "," : thousand;
 		decimal = !decimal ? "." : decimal;
