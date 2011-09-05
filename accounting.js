@@ -21,7 +21,8 @@ var accounting = (function () {
 			decimal : ".",  // decimal point separator
 			thousand: ",",  // thousands separator
 			precision : 2,  // decimal places
-			grouping : 3    // digit grouping (not implemented yet)
+			grouping : 3,   // digit grouping (not implemented yet)
+			subunits: 100
 		},
 		number: {
 			precision : 0,	// default precision on numbers is 0
@@ -38,6 +39,14 @@ var accounting = (function () {
 	var nativeMap = Array.prototype.map,
 		nativeIsArray = Array.isArray,
 		toString = Object.prototype.toString;
+
+	/**
+	 * Money should be stored as integers, so we're assuming that any money calculation will
+	 * be made by passing an integer representation of the monies.
+	 */
+	function from_int(number){
+		return (number/settings.currency.subunits);
+	};
 
 	/**
 	 * Tests whether supplied parameter is a string
@@ -225,7 +234,7 @@ var accounting = (function () {
 		opts = defaults(opts, settings.number);
 
 		// Clean up number and precision:
-		number = unformat(number);
+		number = unformat(from_int(number));
 		opts.precision = checkPrecision(opts.precision);
 
 		// Do some calc:
